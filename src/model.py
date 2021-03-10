@@ -3,17 +3,28 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.models as models
 import math
+import torchaudio
+
 class EffectModel(nn.Module):
     def __init__(self, n, sr, filter_size=1):
         super(EffectModel, self).__init__()
         seq = []
+        self.volume = nn.Parameter(torch.ones((n)))
 
         for i in range(n):
             seq.append(nn.Conv1d(1, 3, filter_size*sr, padding=int(((filter_size*sr) -1 ) / 2)))
+            seq.append(nn.PReLU())
+            seq.append(nn.BatchNorm1d(3))
             seq.append(nn.Conv1d(3, 3, filter_size*sr, padding=int(((filter_size*sr) -1 ) / 2)))
+            seq.append(nn.PReLU())
+            seq.append(nn.BatchNorm1d(3))
             seq.append(nn.Conv1d(3, 1, filter_size*sr, padding=int(((filter_size*sr) -1 ) / 2)))
+            seq.append(nn.PReLU())
+            seq.append(nn.BatchNorm1d(1))
+            seq.append(torchaudio.transforms.Vol(self.volume[i]))
 
         self.pedal = nn.Sequential(*seq)
+        self.volume = Variable()
 
         self._initialize_weights()
 

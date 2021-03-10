@@ -24,9 +24,9 @@ def parseArgs():
     parser.add_argument("-s", "--save-path", type=str, default="",
                         help="Save path, default uses tensorboard logdir")
     parser.add_argument("-lr", "--learning-rate", type=float,
-                        default=1e-10, help="Learning rate")
+                        default=1e-8, help="Learning rate")
     parser.add_argument("-mi", "--max-iter", type=int,
-                        default=400, help="Max Iterations")
+                        default=1000, help="Max Iterations")
     parser.add_argument('--seed', type=int, default=789,
                         help='random seed (default: 789)')
     return parser.parse_args()
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         x.to(device)
         y.to(device)
 
-        model = EffectModel(6, 1001).to(device)
+        model = EffectModel(3, 10001).to(device)
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = optim.SGD(trainable_params, lr=args.learning_rate, momentum=0.9)
 
@@ -91,12 +91,13 @@ if __name__ == "__main__":
             writer.add_scalar("{:02d}/loss".format(idx), loss.item(), i)
 
             if i % 10 == 0:
-                for param_idx, param in enumerate(model.parameters()):
-                    if len(param.shape) > 1:
-                        fig = plt.figure()
-                        curve = param.view(-1).cpu().detach().numpy()
-                        plt.plot(curve)
-                        writer.add_figure("{:02d}-song/{:02d}-filter/".format(idx, param_idx), fig, i)
+                # for param_idx, param in enumerate(model.parameters()):
+                #     if len(param.shape) > 1:
+                #         fig = plt.figure()
+                #         curve = param.view(-1).cpu().detach().numpy()
+                #         plt.plot(curve)
+                #         writer.add_figure("{:02d}-song/{:02d}-filter/".format(idx, param_idx), fig, i)
+                #         plt.clf()
 
                 writer.add_audio("{:02d}/processed".format(idx),
                                 new_x.squeeze(0).squeeze(0), i, sample_rate=x_sr)
