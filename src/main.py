@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader, Dataset
 from torch.autograd import Variable
 
 from loader import SongsDataset
-from model import Discriminator, Generator
+# from model import Discriminator, Generator
+from simple_model import Discriminator, Generator
 
 from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
@@ -52,8 +53,8 @@ if __name__ == "__main__":
     logdir = writer.logdir
     print("Logdir:", logdir)
 
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    device = "cpu"
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # device = "cpu"
     print("Using Device:", device, flush=True)
 
     dataset = SongsDataset()
