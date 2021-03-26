@@ -194,7 +194,7 @@ if __name__ == "__main__":
     running_loss = 0.0
     counter = 0
 
-    trainset = SongsDataset(simplified=True, train=True, baby=False)
+    trainset = SongsDataset(simplified=True, train=True, baby=True)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
     testset = SongsDataset(simplified=True, train=False)

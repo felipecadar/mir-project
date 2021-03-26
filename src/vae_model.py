@@ -11,8 +11,8 @@ from siren_pytorch import SirenNet, SirenWrapper
 # Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
 
 hidden = 1024
-latent_dim = 512 # latent dimension for sampling
-n_layers = 3
+latent_dim = 1024 # latent dimension for sampling
+n_layers = 6
 
 def final_loss(bce_loss, mu, logvar):
     BCE = bce_loss 
