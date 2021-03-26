@@ -28,7 +28,7 @@ import librosa.display
 def parseArgs():
     parser = argparse.ArgumentParser("Train the net \o/")
     parser.add_argument("-s", "--save-path", type=str, default="",help="Save path, default uses tensorboard logdir")
-    parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
+    parser.add_argument("--lr", type=float, default=0.00001, help="adam: learning rate")
     parser.add_argument("-me", "--max-epochs", type=int,default=100, help="Max Iterations")
     parser.add_argument("-bs", "--batch-size", type=int,default=4, help="Batch Size")
     parser.add_argument('--seed', type=int, default=789,help='random seed (default: 789)')
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     running_loss = 0.0
     counter = 0
 
-    trainset = SongsDataset(simplified=True, train=True, baby=True)
+    trainset = SongsDataset(simplified=True, train=True, baby=False)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
     testset = SongsDataset(simplified=True, train=False)
