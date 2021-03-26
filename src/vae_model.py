@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 import math
 import librosa as lr
+from siren import Sine
 
 # Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
 
@@ -21,7 +22,9 @@ def final_loss(bce_loss, mu, logvar):
 class ConvVAE(nn.Module):
     def __init__(self):
         super(ConvVAE, self).__init__()
- 
+
+        self.sine = Sine(w0=1)
+
         # encoder
         self.enc1 = nn.Conv2d(
             in_channels=image_channels, out_channels=init_channels, kernel_size=kernel_size, 
@@ -83,15 +86,15 @@ class ConvVAE(nn.Module):
  
     def forward(self, x):
         # encoding
-        x = F.relu(self.enc1(x))
+        x = self.sine(self.enc1(x))
         # print("enc1", x.shape)
-        x = F.relu(self.enc2(x))
+        x = self.sine(self.enc2(x))
         # print("enc2", x.shape)
-        x = F.relu(self.enc3(x))
+        x = self.sine(self.enc3(x))
         # print("enc3", x.shape)
-        x = F.relu(self.enc4(x))
+        x = self.sine(self.enc4(x))
         # print("enc4", x.shape)
-        x = F.relu(self.enc5(x))
+        x = self.sine(self.enc5(x))
         # print("enc5", x.shape)
 
 
@@ -119,21 +122,21 @@ class ConvVAE(nn.Module):
         # print("view", z.shape)
     
         # decoding
-        x = F.relu(self.dec1(z))
+        x = self.sine(self.dec1(z))
         # print("dec1", x.shape)
-        x = F.relu(self.dec2(x))
+        x = self.sine(self.dec2(x))
         # print("dec2", x.shape)
-        x = F.relu(self.dec3(x))
+        x = self.sine(self.dec3(x))
         # print("dec3", x.shape)
-        x = F.relu(self.dec4(x))
+        x = self.sine(self.dec4(x))
         # print("dec4", x.shape)
-        x = F.relu(self.dec5(x))
+        x = self.sine(self.dec5(x))
         # print("dec5", x.shape)
 
         x = F.interpolate(x, size=[1025, 87])
         # print("Interpolate", x.shape)
         
-        reconstruction = torch.sigmoid(x)
+        reconstruction = self.sine(x)
         # reconstruction = x
         return reconstruction, mu, log_var
 

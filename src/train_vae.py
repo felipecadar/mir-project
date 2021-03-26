@@ -60,8 +60,19 @@ def train(model, dataloader, dataset, device, optimizer, criterion, writer, epoc
     for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size), position=0, desc="Train"):
         counter += 1
 
-        data = norm(data)
+        # data = norm(data)
+        # maxx = torch.max(data)
         data = data.to(device)
+
+        # norm
+        original_shape = data.shape
+        view_data = data.view(data.size(0), -1)
+        data_max = view_data.max(1, keepdim=True)[0]
+        view_data /= data_max
+        data = view_data.view(original_shape)
+
+
+        # import pdb; pdb.set_trace()
 
         optimizer.zero_grad()
 
@@ -79,9 +90,19 @@ def train(model, dataloader, dataset, device, optimizer, criterion, writer, epoc
         writer.add_scalar("train/loss", loss.item(), global_idx)
 
         if i % 10 == 0:
-            
-            np_reconstruction = denorm(reconstruction[0, 0, :, :].detach().cpu().numpy())
-            np_original  = denorm(data[0, 0, :, :].detach().cpu().numpy())
+
+            #denorm
+            data = data.view(data.size(0), -1)
+            data *= data_max
+            data = data.view(original_shape)
+
+            reconstruction = reconstruction.view(data.size(0), -1)
+            reconstruction *= data_max
+            reconstruction = reconstruction.view(original_shape)
+
+
+            np_reconstruction = reconstruction[0, 0, :, :].detach().cpu().numpy()
+            np_original  = data[0, 0, :, :].detach().cpu().numpy()
 
             audio_reconstruction = librosa.istft(np_reconstruction)
             audio_original = librosa.istft(np_original)
@@ -89,17 +110,25 @@ def train(model, dataloader, dataset, device, optimizer, criterion, writer, epoc
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
-                fig, ax = plt.subplots()
-                img = librosa.display.specshow(librosa.amplitude_to_db(np_reconstruction ,ref=np.max), y_axis='log', x_axis='time', ax=ax)
-                ax.set_title('Reconstruction Power spectrogram')
-                fig.colorbar(img, ax=ax, format="%+2.0f dB")
+                fig = plt.figure()
+                imgplot = plt.imshow(np_reconstruction, interpolation='nearest', aspect='auto')
+                plt.colorbar()
+
+                # fig, ax = plt.subplots()
+                # img = librosa.display.specshow(librosa.amplitude_to_db(np_reconstruction ,ref=np.max), y_axis='log', x_axis='time', ax=ax)
+                # ax.set_title('Reconstruction Power spectrogram')
+                # fig.colorbar(img, ax=ax, format="%+2.0f dB")
 
                 writer.add_figure("train/spec-reconstructed", fig, global_idx)
 
-                fig, ax = plt.subplots()
-                img = librosa.display.specshow(librosa.amplitude_to_db(np_original ,ref=np.max), y_axis='log', x_axis='time', ax=ax)
-                ax.set_title('Reconstruction Power spectrogram')
-                fig.colorbar(img, ax=ax, format="%+2.0f dB")
+                fig = plt.figure()
+                imgplot = plt.imshow(np_original, interpolation='nearest', aspect='auto')
+                plt.colorbar()
+
+                # fig, ax = plt.subplots()
+                # img = librosa.display.specshow(librosa.amplitude_to_db(np_original ,ref=np.max), y_axis='log', x_axis='time', ax=ax)
+                # ax.set_title('Reconstruction Power spectrogram')
+                # fig.colorbar(img, ax=ax, format="%+2.0f dB")
 
                 writer.add_figure("train/spec-original", fig, global_idx)
 
@@ -170,7 +199,7 @@ if __name__ == "__main__":
     running_loss = 0.0
     counter = 0
 
-    trainset = SongsDataset(simplified=True, train=True, baby=True)
+    trainset = SongsDataset(simplified=True, train=True, baby=False)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
     testset = SongsDataset(simplified=True, train=False)

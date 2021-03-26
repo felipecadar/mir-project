@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 
 class SongsDataset(Dataset):
-    def __init__(self, root_dir="/srv/storage/datasets/cadar/IDMT-SMT-AUDIO-EFFECTS/", mono=False, train=True, split=0.9, simplified=False, baby=True):
+    def __init__(self, root_dir="/homeLocal/IDMT-SMT-AUDIO-EFFECTS/", mono=False, train=True, split=0.9, simplified=False, baby=True):
 
         self.DATASET_PATH = root_dir
         self.baby = baby
