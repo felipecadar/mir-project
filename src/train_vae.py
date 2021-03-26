@@ -28,7 +28,7 @@ import librosa.display
 def parseArgs():
     parser = argparse.ArgumentParser("Train the net \o/")
     parser.add_argument("-s", "--save-path", type=str, default="",help="Save path, default uses tensorboard logdir")
-    parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+    parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
     parser.add_argument("-me", "--max-epochs", type=int,default=100, help="Max Iterations")
     parser.add_argument("-bs", "--batch-size", type=int,default=4, help="Batch Size")
     parser.add_argument('--seed', type=int, default=789,help='random seed (default: 789)')
@@ -67,8 +67,13 @@ def train(model, dataloader, dataset, device, optimizer, criterion, writer, epoc
         # norm
         original_shape = data.shape
         view_data = data.view(data.size(0), -1)
+        
+        data_min = view_data.min(1, keepdim=True)[0]
+        view_data -= data_min
+        
         data_max = view_data.max(1, keepdim=True)[0]
         view_data /= data_max
+        
         data = view_data.view(original_shape)
 
 
@@ -94,46 +99,36 @@ def train(model, dataloader, dataset, device, optimizer, criterion, writer, epoc
             #denorm
             data = data.view(data.size(0), -1)
             data *= data_max
+            data += data_min
             data = data.view(original_shape)
 
+            #denorm
             reconstruction = reconstruction.view(data.size(0), -1)
             reconstruction *= data_max
+            reconstruction += data_min
             reconstruction = reconstruction.view(original_shape)
 
-
-            np_reconstruction = reconstruction[0, 0, :, :].detach().cpu().numpy()
-            np_original  = data[0, 0, :, :].detach().cpu().numpy()
-
-            audio_reconstruction = librosa.istft(np_reconstruction)
-            audio_original = librosa.istft(np_original)
+            #get data
+            np_reconstruction = reconstruction[0, 0, :].detach().cpu().numpy()
+            np_original  = data[0, 0, :].detach().cpu().numpy()
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
                 fig = plt.figure()
-                imgplot = plt.imshow(np_reconstruction, interpolation='nearest', aspect='auto')
-                plt.colorbar()
-
-                # fig, ax = plt.subplots()
-                # img = librosa.display.specshow(librosa.amplitude_to_db(np_reconstruction ,ref=np.max), y_axis='log', x_axis='time', ax=ax)
-                # ax.set_title('Reconstruction Power spectrogram')
-                # fig.colorbar(img, ax=ax, format="%+2.0f dB")
-
-                writer.add_figure("train/spec-reconstructed", fig, global_idx)
+                plt.plot(np_reconstruction)
+                plt.title("Audio Reconstruction")
+                writer.add_figure("train/wave-reconstructed", fig, global_idx)
 
                 fig = plt.figure()
-                imgplot = plt.imshow(np_original, interpolation='nearest', aspect='auto')
-                plt.colorbar()
+                plt.plot(np_original)
+                plt.title("Audio Original")
+                writer.add_figure("train/wave-original", fig, global_idx)
 
-                # fig, ax = plt.subplots()
-                # img = librosa.display.specshow(librosa.amplitude_to_db(np_original ,ref=np.max), y_axis='log', x_axis='time', ax=ax)
-                # ax.set_title('Reconstruction Power spectrogram')
-                # fig.colorbar(img, ax=ax, format="%+2.0f dB")
+                plt.close('all')
 
-                writer.add_figure("train/spec-original", fig, global_idx)
-
-                writer.add_audio("train/audio-reconstructed", audio_reconstruction, global_idx, sample_rate=44100)
-                writer.add_audio("train/audio-original", audio_original, global_idx, sample_rate=44100)
+                writer.add_audio("train/audio-reczonstructed", np_reconstruction, global_idx, sample_rate=22050)
+                writer.add_audio("train/audio-original", np_original, global_idx, sample_rate=22050)
             
         optimizer.step()
 
@@ -199,7 +194,7 @@ if __name__ == "__main__":
     running_loss = 0.0
     counter = 0
 
-    trainset = SongsDataset(simplified=True, train=True, baby=False)
+    trainset = SongsDataset(simplified=True, train=True, baby=True)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
     testset = SongsDataset(simplified=True, train=False)

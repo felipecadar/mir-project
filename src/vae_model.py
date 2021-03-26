@@ -8,10 +8,10 @@ from siren import Sine
 
 # Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
 
-kernel_size = 4 # (4, 4) kernel
+kernel_size = 5 # (4, 4) kernel
 init_channels = 8 # initial number of filters
 image_channels = 1 # MNIST images are grayscale
-latent_dim = 256 # latent dimension for sampling
+latent_dim = 1024 # latent dimension for sampling
 
 def final_loss(bce_loss, mu, logvar):
     BCE = bce_loss 
@@ -26,55 +26,64 @@ class ConvVAE(nn.Module):
         self.sine = Sine(w0=1)
 
         # encoder
-        self.enc1 = nn.Conv2d(
+        self.enc1 = nn.Conv1d(
             in_channels=image_channels, out_channels=init_channels, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
-        self.enc2 = nn.Conv2d(
+        self.enc2 = nn.Conv1d(
             in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
-        self.enc3 = nn.Conv2d(
+        self.enc3 = nn.Conv1d(
             in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
-        self.enc4 = nn.Conv2d(
+        self.enc4 = nn.Conv1d(
             in_channels=init_channels*4, out_channels=init_channels*8, kernel_size=kernel_size, 
-            stride=2, padding=0
+            stride=3, padding=0
         )
 
-        self.enc5 = nn.Conv2d(
+        self.enc5 = nn.Conv1d(
             in_channels=init_channels*8, out_channels=init_channels*16, kernel_size=kernel_size, 
-            stride=2, padding=0
+            stride=3, padding=0
+        )
+
+        self.enc6 = nn.Conv1d(
+            in_channels=init_channels*16, out_channels=init_channels*32, kernel_size=kernel_size, 
+            stride=3, padding=0
         )
 
         # fully connected layers for learning representations
-        self.fc1 = nn.Linear(3840, 1024)
+        self.fc1 = nn.Linear(15104, 1024)
         self.fc_mu = nn.Linear(1024, latent_dim)
         self.fc_log_var = nn.Linear(1024, latent_dim)
-        self.fc2 = nn.Linear(latent_dim, 3840)
+        self.fc2 = nn.Linear(latent_dim, 15104)
 
         # decoder 
-        self.dec1 = nn.ConvTranspose2d(
+        self.dec1 = nn.ConvTranspose1d(
+            in_channels=init_channels*32, out_channels=init_channels*16, kernel_size=kernel_size, 
+            stride=3, padding=0
+        )
+        self.dec2 = nn.ConvTranspose1d(
             in_channels=init_channels*16, out_channels=init_channels*8, kernel_size=kernel_size, 
-            stride=2, padding=0
+            stride=3, padding=0
         )
-        self.dec2 = nn.ConvTranspose2d(
+        self.dec3 = nn.ConvTranspose1d(
             in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
-            stride=2, padding=0
+            stride=3, padding=0
         )
-        self.dec3 = nn.ConvTranspose2d(
+        self.dec4 = nn.ConvTranspose1d(
             in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
-        self.dec4 = nn.ConvTranspose2d(
+        self.dec5 = nn.ConvTranspose1d(
             in_channels=init_channels*2, out_channels=init_channels, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
 
-        self.dec5 = nn.ConvTranspose2d(
+        self.dec6 = nn.ConvTranspose1d(
             in_channels=init_channels, out_channels=image_channels, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
 
     def reparameterize(self, mu, log_var):
@@ -96,9 +105,11 @@ class ConvVAE(nn.Module):
         # print("enc4", x.shape)
         x = self.sine(self.enc5(x))
         # print("enc5", x.shape)
+        x = self.sine(self.enc6(x))
+        # print("enc6", x.shape)
 
 
-        batch, _, _, _ = x.shape
+        batch, _, _, = x.shape
         # x = F.adaptive_avg_pool2d(x, 1).view(batch, -1)
         x = x.view(batch, -1)
 
@@ -118,7 +129,7 @@ class ConvVAE(nn.Module):
         z = self.fc2(z)
         # print("fc2", z.shape)
 
-        z = z.view(-1, 128, 30, 1)
+        z = z.view(batch, init_channels*32, -1)
         # print("view", z.shape)
     
         # decoding
@@ -132,8 +143,10 @@ class ConvVAE(nn.Module):
         # print("dec4", x.shape)
         x = self.sine(self.dec5(x))
         # print("dec5", x.shape)
+        x = self.sine(self.dec6(x))
+        # print("dec6", x.shape)
 
-        x = F.interpolate(x, size=[1025, 87])
+        x = F.interpolate(x, size=[44101])
         # print("Interpolate", x.shape)
         
         reconstruction = self.sine(x)
@@ -144,30 +157,11 @@ class ConvVAE(nn.Module):
 if __name__ == "__main__":
     model = ConvVAE()
 
-    x = torch.rand(1, 1, 1025, 87)
+    # x = torch.rand(1, 1, 1025, 87)
+
+    x = torch.rand(1, 1, 44101)
     print("INIT SHAPE", x.shape)
 
     reconstruction, mu, log_var = model(x)
     print("FINAL SHAPE", reconstruction.shape)
 
-
-# INIT SHAPE torch.Size([1, 1, 1025, 87])
-# enc1 torch.Size([1, 8, 512, 43])
-# enc2 torch.Size([1, 16, 256, 21])
-# enc3 torch.Size([1, 32, 128, 10])
-# enc4 torch.Size([1, 64, 63, 4])
-# enc5 torch.Size([1, 128, 30, 1])
-# view torch.Size([1, 3840])
-# hidden torch.Size([1, 3840])
-# mu torch.Size([1, 256])
-# logvar torch.Size([1, 256])
-# reparameterize torch.Size([1, 256])
-# fc2 torch.Size([1, 3840])
-# view torch.Size([1, 128, 30, 1])
-# dec1 torch.Size([1, 64, 62, 4])
-# dec2 torch.Size([1, 32, 126, 10])
-# dec3 torch.Size([1, 16, 252, 20])
-# dec4 torch.Size([1, 8, 504, 40])
-# dec5 torch.Size([1, 1, 1008, 80])
-# Interpolate torch.Size([1, 1, 1025, 87])
-# FINAL SHAPE torch.Size([1, 1, 1025, 87])

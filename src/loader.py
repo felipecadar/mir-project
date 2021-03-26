@@ -91,11 +91,11 @@ class SongsDataset(Dataset):
             x, sr = lr.load(clean_fname)
             y, _ = lr.load(effect_fname)
 
-            x_stft = np.abs(lr.stft(x))
-            y_stft = np.abs(lr.stft(y))
+            # x = np.abs(lr.stft(x))
+            # y = np.abs(lr.stft(y))
 
-            x = torch.tensor([x_stft], requires_grad=True)
-            y = torch.tensor([y_stft], requires_grad=True)
+            x = torch.tensor([x], requires_grad=True)
+            y = torch.tensor([y], requires_grad=True)
             context = torch.LongTensor([effect_idx])
 
             return x,y,context
@@ -104,8 +104,8 @@ class SongsDataset(Dataset):
             fname = self.indexes[idx]
             x, sr = lr.load(fname)
             
-            x_stft = np.abs(lr.stft(x))
-            x = torch.tensor([x_stft], requires_grad=True)
+            # x = np.abs(lr.stft(x))
+            x = torch.tensor([x], requires_grad=True)
             return x
 
 
@@ -144,4 +144,5 @@ class SongsDataset(Dataset):
 if __name__ == "__main__":
 
     dataset = SongsDataset(simplified=True)
-    print(dataset.getMeanStd(recalc=True))
+    print(dataset[0].shape)
+    # print(dataset.getMeanStd(recalc=True))
