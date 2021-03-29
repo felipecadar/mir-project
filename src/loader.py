@@ -6,12 +6,27 @@ from glob import glob
 import os
 import numpy as np
 import random
-import librosa as lr
 from tqdm import tqdm
+
+import librosa
+from librosa.feature import melspectrogram
+from librosa.feature.inverse import mel_to_audio
+
+def norm_sound(x,sr=22050):
+  x = melspectrogram(x,sr=sr)
+  x = librosa.power_to_db(x, ref=np.max)
+  x = (x+40.)/300.  # + 100 / 200
+  return x
+
+def denorm_sound(x,sr=22050):
+  x = x*300. - 40.
+  x = librosa.db_to_power(x)
+  x = mel_to_audio(x)
+  return x 
 
 
 class SongsDataset(Dataset):
-    def __init__(self, root_dir="/homeLocal/IDMT-SMT-AUDIO-EFFECTS/", mono=False, train=True, split=0.9, simplified=False, baby=True):
+    def __init__(self, root_dir="/homeLocal/IDMT-SMT-AUDIO-EFFECTS/", mono=False, train=True, split=0.9, simplified=False, baby=False):
 
         self.DATASET_PATH = root_dir
         self.baby = baby
@@ -23,10 +38,12 @@ class SongsDataset(Dataset):
         self.EFFECTS = ["Chorus", "Distortion", "EQ", "FeedbackDelay", "Flanger"]
         self.CLEAN = "NoFX"
         self.DISTORTION = "Distortion"
-        
+        self.DATABASE = {}
         self.mono = mono
         self.makeDataset()
         self.makeIndex()
+
+        self.cache = {}
 
     ## Build Dataset
     def makeDataset(self):
@@ -58,60 +75,85 @@ class SongsDataset(Dataset):
         i = 0
         CLEAN_DATASET = list(self.DATABASE.keys())
         split_point = int(len(CLEAN_DATASET) * self.split)
-
+    
+        
         if self.train:
             CLEAN_DATASET = CLEAN_DATASET[:split_point]
         else:
             CLEAN_DATASET = CLEAN_DATASET[split_point:]
 
-        for clean_fname in CLEAN_DATASET:
-            
-            if self.simplified:
+
+        if self.simplified:
+            for clean_fname in CLEAN_DATASET:
+                
                 self.indexes[i] = clean_fname
                 i += 1
-            
-            for effect_idx, effect_name in enumerate(self.EFFECTS):
-                for alternative in range(len(self.DATABASE[clean_fname][effect_name])):
-                    if self.simplified:
+                
+                for effect_idx, effect_name in enumerate(self.EFFECTS):
+                    for alternative in range(len(self.DATABASE[clean_fname][effect_name])):
                         self.indexes[i] = self.DATABASE[clean_fname][effect_name][alternative]
-                    else:
-                        self.indexes[i] = (clean_fname, self.DATABASE[clean_fname][effect_name][alternative], effect_idx)
-    
+                        i += 1
+        else:
+            for clean_fname in CLEAN_DATASET:
+                for effect_idx, effect_name in enumerate(self.EFFECTS):
+                    self.indexes[i] = (clean_fname, self.DATABASE[clean_fname][effect_name][0], effect_idx)
                     i += 1
 
     def __len__(self):
         return len(self.indexes)
+    
+    def grab(self, fname):
+        # return librosa.load(fname)
+
+        if not (fname in self.cache):
+            self.cache[fname] = librosa.load(fname)
+            
+        return self.cache[fname]
 
     def __getitem__(self, idx):
         if self.baby:
-            idx = 0
+            idx = idx % 4
         
         if not self.simplified:
             clean_fname, effect_fname, effect_idx = self.indexes[idx]
-            x, sr = lr.load(clean_fname)
-            y, _ = lr.load(effect_fname)
+            x, sr = self.grab(clean_fname)
+            y, _ = self.grab(effect_fname)
 
-            x_stft = np.abs(lr.stft(x))
-            y_stft = np.abs(lr.stft(y))
+            x = norm_sound(x)
+            y = norm_sound(y)
 
-            x = torch.tensor([x_stft], requires_grad=True)
-            y = torch.tensor([y_stft], requires_grad=True)
-            context = torch.LongTensor([effect_idx])
+            x = torch.tensor([x], requires_grad=True)
+            y = torch.tensor([y], requires_grad=True)
 
-            return x,y,context
+            # context = torch.LongTensor([effect_idx])
+
+            return x,y,effect_idx
 
         if self.simplified:
             fname = self.indexes[idx]
-            x, sr = lr.load(fname)
-            
-            x_stft = np.abs(lr.stft(x))
-            x = torch.tensor([x_stft], requires_grad=True)
+            x, sr = self.grab(fname)
+
+
+            x = norm_sound(x)
+            x = torch.tensor([x], requires_grad=True)
+
+            # x_stft = np.abs(librosastft(x))
+            # x = torch.tensor([x_stft], requires_grad=True)
             return x
 
+    def getEvalSample(self):
+        clean_fname = random.choice(list(self.DATABASE.keys()))
+        clean_sample = norm_sound(self.grab(clean_fname)[0])
+        clean_sample = torch.tensor([[clean_sample]])
+
+        
+        effect_vectors = {effect_name:torch.tensor([[norm_sound(self.grab(self.DATABASE[clean_fname][effect_name][0])[0])]]) for effect_name in self.EFFECTS}
+
+        return clean_sample, effect_vectors
 
     def getNp(self, idx):
         clean_fname = self.indexes[idx]
-        x, sr = lr.load(clean_fname)
+        x, sr = self.grab(clean_fname)
         return x
 
     def getMeanStd(self, recalc=False):
@@ -130,7 +172,7 @@ class SongsDataset(Dataset):
             for idx in tqdm(subset):
                 x = self.getNp(idx)
 
-                x_stft = np.abs(lr.stft(x))
+                x_stft = np.abs(librosastft(x))
 
                 means.append(np.mean(x_stft))
                 stds.append(np.std(x_stft))
@@ -143,5 +185,9 @@ class SongsDataset(Dataset):
 
 if __name__ == "__main__":
 
-    dataset = SongsDataset(simplified=True)
-    print(dataset.getMeanStd(recalc=True))
+    dataset = SongsDataset(simplified=False)
+    loader = DataLoader(dataset, batch_size=1)
+    for data in loader:
+        x, y, i =  data   
+    
+        print(i)
