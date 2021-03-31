@@ -151,6 +151,22 @@ class SongsDataset(Dataset):
 
         return clean_sample, effect_vectors
 
+    def getSampleBatch(self):
+        clean_fname = random.choice(list(self.DATABASE.keys()))
+        clean_sample = norm_sound(self.grab(clean_fname)[0])
+
+        clean_sample = torch.tensor([[clean_sample]])
+        effect_vectors = [torch.tensor([[norm_sound(self.grab(self.DATABASE[clean_fname][effect_name][0])[0])]]) for effect_name in self.EFFECTS]
+
+        x = torch.cat(effect_vectors, 0)
+        x = torch.cat([x, clean_sample], 0)
+
+        # distortion_sample = torch.tensor([[norm_sound(self.grab(self.DATABASE[clean_fname][self.DISTORTION][0])[0])]])
+        # x = torch.cat([clean_sample, distortion_sample], 0)
+
+        return x
+
+
     def getNp(self, idx):
         clean_fname = self.indexes[idx]
         x, sr = self.grab(clean_fname)
@@ -186,8 +202,12 @@ class SongsDataset(Dataset):
 if __name__ == "__main__":
 
     dataset = SongsDataset(simplified=False)
-    loader = DataLoader(dataset, batch_size=1)
-    for data in loader:
-        x, y, i =  data   
+
+    batch = dataset.getSampleBatch()
+    print(batch.shape)
+
+    # loader = DataLoader(dataset, batch_size=1)
+    # for data in loader:
+    #     x, y, i =  data   
     
-        print(i)
+    #     print(i)
